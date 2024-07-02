@@ -1,87 +1,110 @@
-import streamlit as st
-import plotly.express as px
-import plotly.graph_objects as go
 import pickle
+import streamlit as st
 import numpy as np
+import plotly.graph_objs as go
+import os
 
-from indices import point_indices, time_indices
-from utils import get_target_points, load_dataset, convert_to_time_x_dict, get_centers
+st.title("(株)佐喜眞義肢 ラベル付き点群データ可視化")
 
-import pdb
+fig = go.Figure()
 
-st.title('(株)佐喜眞義肢 動作簡易プロット')
+pickle_directory = './'
+pickle_files = [f for f in os.listdir(pickle_directory) if f.endswith('.pickle')]
 
-data_dict = load_dataset([1, 2, 3, 4, 5])
+selected_file = st.selectbox('Select a pickle file:', pickle_files)
 
-time_x_dicts = convert_to_time_x_dict(data_dict)
-time_coords_mats_dict = time_x_dicts['time_coords_mats']
-time_point_labels_dict = time_x_dicts['time_point_labels']
+# Load labeled points from selected pickle file
+if selected_file:
+    with open(selected_file, 'rb') as file:
+        time_based_dict = pickle.load(file)
+else:
+    st.error("Please select a file.")
 
-pattern = st.selectbox('Select pattern', ('1', '2', '3', '4', '5'))
-direction = st.selectbox('Select direction', ('forward', 'backward'))
-time_index = st.slider("Select time", 0, len(time_coords_mats_dict[int(pattern)][direction]), 1)
+times = sorted(time_based_dict.keys())
+points = time_based_dict[times[0]]
+# Set the range for each axis
+# x_range = [min(point['point'][0] for point in points), max(point['point'][0] for point in points)]
+# y_range = [min(point['point'][1] for point in points), max(point['point'][1] for point in points)]
+# z_range = [min(point['point'][2] for point in points), max(point['point'][2] for point in points)]
+# x_range = [-0.5, -0.9]
+z_range = [0, 1.5]
 
-time_coords_mats = time_coords_mats_dict[int(pattern)][direction]
-time_point_labels = time_point_labels_dict[int(pattern)][direction]
-sample_times = sorted(list(time_coords_mats.keys()))
-time_points = data_dict[int(pattern)][time_indices[int(pattern)][direction]]
-target_points = get_target_points(time_points, int(pattern), direction)
+# fig.update_layout(
+#     scene=dict(
+#         xaxis=dict(range=x_range),
+#         yaxis=dict(range=y_range),
+#         zaxis=dict(range=z_range)
+#     )
+# )
 
-shoulder_centers = get_centers(target_points, 'shoulder')
-upper_centers = get_centers(target_points, 'upper')
-
-x = np.linspace(-3, 3, 100)
-y = np.linspace(0, 10, 100)
-z = np.zeros()
-x, y = np.meshgrid(x, y)
-pdb.set_trace()
-# Create a 3D scatter plot animation using Plotly
-fig = go.Figure(
-    data=[
-        go.Scatter3d(
-            x=time_coords_mats[sample_times[time_index]][:, 0],
-            y=time_coords_mats[sample_times[time_index]][:, 1],
-            z=time_coords_mats[sample_times[time_index]][:, 2],
-            mode='markers',
-            marker=dict(size=2, color='darkgreen'),
-            text=time_point_labels[sample_times[time_index]],
-            textposition='top center'
-        ),
-        go.Scatter3d(
-            x=[shoulder_centers[time_index][0], upper_centers[time_index][0]],
-            y=[shoulder_centers[time_index][1], upper_centers[time_index][1]],
-            z=[shoulder_centers[time_index][2], upper_centers[time_index][2]],
-            mode='lines',
-            line=dict(color='red', width=2)
-        ),
-        go.Scatter3d(
-            x=[time_coords_mats[sample_times[time_index]][point_indices[int(pattern)]['upper']['left'][direction]][0], 
-               time_coords_mats[sample_times[time_index]][point_indices[int(pattern)]['joint']['left'][direction]][0]],
-            y=[time_coords_mats[sample_times[time_index]][point_indices[int(pattern)]['upper']['left'][direction]][1], 
-               time_coords_mats[sample_times[time_index]][point_indices[int(pattern)]['joint']['left'][direction]][1]],
-            z=[time_coords_mats[sample_times[time_index]][point_indices[int(pattern)]['upper']['left'][direction]][2], 
-               time_coords_mats[sample_times[time_index]][point_indices[int(pattern)]['joint']['left'][direction]][2]],
-            mode='lines',
-            line=dict(color='blue', width=2)
-        ), 
-        go.Scatter3d(
-            x=[time_coords_mats[sample_times[time_index]][point_indices[int(pattern)]['lower']['left'][direction]][0], 
-               time_coords_mats[sample_times[time_index]][point_indices[int(pattern)]['joint']['left'][direction]][0]],
-            y=[time_coords_mats[sample_times[time_index]][point_indices[int(pattern)]['lower']['left'][direction]][1], 
-               time_coords_mats[sample_times[time_index]][point_indices[int(pattern)]['joint']['left'][direction]][1]],
-            z=[time_coords_mats[sample_times[time_index]][point_indices[int(pattern)]['lower']['left'][direction]][2], 
-               time_coords_mats[sample_times[time_index]][point_indices[int(pattern)]['joint']['left'][direction]][2]],
-            mode='lines',
-            line=dict(color='blue', width=2)
-        )
-    ],
-    layout=go.Layout(
-        margin=dict(l=0, r=0, b=0, t=0),
-        legend=dict(x=0, y=1),
-        scene=dict(
-            bgcolor='gray',
-        )
+fig.update_layout(
+    scene=dict(
+        zaxis=dict(range=z_range)
     )
 )
 
+
+for point in points:
+    fig.add_trace(
+        go.Scatter3d(
+            x=[point['point'][0]],
+            y=[point['point'][1]],
+            z=[point['point'][2]],
+            mode='markers+text',
+            marker=dict(size=2),
+            text=[point['label']],  # Add this line to include labels
+            textposition='top center'  # Optional: position of the text
+        )
+    )
+
+# Create frames for the animation
+frames = []
+for i, time in enumerate(sorted(time_based_dict.keys())):
+    frame = go.Frame(
+        data=[go.Scatter3d(
+            x=[point['point'][0]],
+            y=[point['point'][1]],
+            z=[point['point'][2]],
+            mode='markers+text',
+            marker=dict(size=2),
+            text=[point['label']],  # Add this line to include labels
+            textposition='top center'  # Optional: position of the text
+        ) for point in time_based_dict[time]],
+        name=str(time),
+        layout=go.Layout(
+            autosize=True,
+            margin=dict(l=0, r=0, t=0, b=0)  # Reduce margins to expand plot to full browser width
+        )
+    )
+    frames.append(frame)
+
+fig.frames = frames
+
+play_button = {
+    'args': [None, {'frame': {'duration': 1, 'redraw': True}, 'fromcurrent': True, 'transition': {'duration': 1, 'easing': 'quadratic-in-out'}}],
+    'label': 'Play',
+    'method': 'animate'
+}
+
+pause_button = {
+    'args': [[None], {'frame': {'duration': 0, 'redraw': False}, 'mode': 'immediate', 'transition': {'duration': 0}}],
+    'label': 'Pause',
+    'method': 'animate'
+}
+
+fig.update_layout(
+    updatemenus=[{
+        'buttons': [play_button, pause_button],
+        'direction': 'left',
+        'pad': {'r': 10, 't': 87},
+        'showactive': False,
+        'type': 'buttons',
+        'x': 0.1,
+        'xanchor': 'right',
+        'y': 0,
+        'yanchor': 'top'
+    }]
+)
+
+# Show the figure
 st.plotly_chart(fig)
