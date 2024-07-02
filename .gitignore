@@ -1,0 +1,4 @@
+# Ignore CSV files
+*.csv
+# Ignore everything in the walk_dataset directory
+walk_dataset/
