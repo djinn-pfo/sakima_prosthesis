@@ -3,14 +3,51 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import pdb
+
+
+def get_nearest_trajectory(initial_point, timestamps, time_points_dict):
+
+    focused_point = initial_point
+    trajectory = [initial_point]
+    for i in range(1, len(timestamps)):
+        next_points = time_points_dict[timestamps[i]]
+        dists = np.array(
+            [np.linalg.norm(next_point - focused_point) for next_point in next_points]
+        )
+
+        focused_point = next_points[np.argmin(dists)]
+        trajectory.append(focused_point)
+
+    return trajectory
+
+
+def assign_initial_labeling(timestamps, time_points_dict):
+
+    initial_points = time_points_dict[timestamps[0]]
+    trajectories = {}
+    for i, point in enumerate(initial_points):
+        trajectories[i] = get_nearest_trajectory(point, timestamps, time_points_dict)
+
+    return trajectories
+
+
+def extract_all_leaps(trajectories):
+
+    leaps = []
+    for label, trajectory in trajectories.items():
+        for i in range(1, len(trajectory)):
+            distance = np.linalg.norm(trajectory[i] - trajectory[i - 1])
+            leaps.append(distance)
+
+    return leaps
 
 
 def check_point_identity(point1, point2):
     return np.allclose(point1, point2)
 
 
-def extract_available_regions(point_nums, available_rate):
-    available_threshold = int(np.floor(np.max(point_nums) * available_rate))
+def extract_available_regions(point_nums, available_threshold):
 
     available_regions = []
     consecutive_region = []
