@@ -35,7 +35,7 @@ def main(file_name):
     }
 
     # point_nums = [len(focused_time_points_dict[timestamp]) for timestamp in focused_timestamps]
-    
+
 
     consistent_trajectories = assign_initial_labeling(focused_time_points_dict, 0.03)
     # for label, trajectory in trajectories.items():
