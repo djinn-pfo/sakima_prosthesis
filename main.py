@@ -34,30 +34,33 @@ def main(file_name):
         timestamp: time_points_dict[timestamp] for timestamp in focused_timestamps
     }
 
-    # trajectories = assign_initial_labeling(focused_time_points_dict)
+    # point_nums = [len(focused_time_points_dict[timestamp]) for timestamp in focused_timestamps]
+    
+
+    consistent_trajectories = assign_initial_labeling(focused_time_points_dict, 0.03)
     # for label, trajectory in trajectories.items():
     #     leaps = extract_leaps(trajectory)
+    #     plt.ylim(0, 0.05)
     #     plt.plot(leaps)
     # plt.show()
 
     # leaps = extract_all_leaps(trajectories)
     # leap_threshold = calc_leap_threshold(leaps)
-    leap_threshold = 0.02
+    # leap_threshold = 0.03
 
-    consistent_trajectories = extract_consistent_trajectories(
-        focused_time_points_dict, leap_threshold
-    )
+    # consistent_trajectories = extract_consistent_trajectories(
+    #     focused_time_points_dict, leap_threshold
+    # )
 
     filtered_trajectories = {}
     for label, trajectory in consistent_trajectories.items():
         if len(trajectory) > 480:
             filtered_trajectories[label] = trajectory
 
-    # for label, trajectory in filtered_trajectories.items():
-    #     times = np.array([point["time"] for point in trajectory])
-    #     plt.scatter(times, [label] * len(times), color="black", s=5)
-    # plt.show()
-    # plt.close()
+    for label, trajectory in filtered_trajectories.items():
+        times = np.array([point["time"] for point in trajectory])
+        plt.scatter(times, [label] * len(times), color="black", s=5)
+    plt.show()
 
     time_points_dict = {}
     for label, trajectory in filtered_trajectories.items():
@@ -74,8 +77,6 @@ def main(file_name):
 
     timestamps = sorted(list(time_points_dict.keys()))
 
-    pdb.set_trace()
-
     outfile = file_name
     outfile = outfile.replace(".csv", ".pickle")
 
@@ -85,7 +86,7 @@ def main(file_name):
 
 if __name__ == "__main__":
     file_names = (
-        # "calib_180_pre.csv",
+        "calib_180_pre.csv",
         "none_2_20240604.csv",
         "tanka_20240604.csv",
         "cb_tanka_20240604.csv",

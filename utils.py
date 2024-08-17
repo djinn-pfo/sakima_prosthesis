@@ -6,46 +6,49 @@ from mpl_toolkits.mplot3d import Axes3D
 import pdb
 
 
-def get_nearest_trajectory(initial_point, timestamps, time_points_dict):
+def get_nearest_trajectory(initial_point, timestamps, time_points_dict, min_dist):
 
     residual = time_points_dict.copy()
 
     focused_point = initial_point
-    trajectory = [initial_point]
-    loop_broken = False
+    trajectory = [{"time": timestamps[0], "point": initial_point}]
     for i in range(1, len(timestamps)):
         next_points = residual[timestamps[i]]
         if len(next_points) == 0:
             loop_broken = True
             break
-
         dists = np.array(
             [np.linalg.norm(next_point - focused_point) for next_point in next_points]
         )
-        nearest_index = np.argmin(dists)
+
+        if min_dist > 0:
+            nearest_dist = np.min(dists)
+            if nearest_dist > min_dist:
+                break
+            else:
+                nearest_index = np.argmin(dists)
+        else:
+            dists = np.array(
+                [np.linalg.norm(next_point - focused_point) for next_point in next_points]
+            )
+            nearest_index = np.argmin(dists)
 
         focused_point = next_points[nearest_index]
-        trajectory.append(focused_point)
+        trajectory.append({"time": timestamps[i], "point": focused_point})
 
         del residual[timestamps[i]][nearest_index]
 
-    if loop_broken:
-        return [], {}
-    else:
-        return trajectory, residual
+    return trajectory, residual
 
-
-def assign_initial_labeling(time_points_dict):
+def assign_initial_labeling(time_points_dict, min_dist=0.0):
 
     timestamps = sorted(list(time_points_dict.keys()))
     initial_points = time_points_dict[timestamps[0]]
     trajectories = {}
     for i, point in enumerate(initial_points):
         trajectories[i], time_points_dict = get_nearest_trajectory(
-            point, timestamps, time_points_dict
+            point, timestamps, time_points_dict, min_dist
         )
-        if len(time_points_dict) == 0:
-            break
 
     return trajectories
 
