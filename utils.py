@@ -8,43 +8,139 @@ import pdb
 
 def get_nearest_trajectory(initial_point, timestamps, time_points_dict):
 
+    residual = time_points_dict.copy()
+
     focused_point = initial_point
     trajectory = [initial_point]
+    loop_broken = False
     for i in range(1, len(timestamps)):
-        next_points = time_points_dict[timestamps[i]]
+        next_points = residual[timestamps[i]]
+        if len(next_points) == 0:
+            loop_broken = True
+            break
+
         dists = np.array(
             [np.linalg.norm(next_point - focused_point) for next_point in next_points]
         )
+        nearest_index = np.argmin(dists)
 
-        focused_point = next_points[np.argmin(dists)]
+        focused_point = next_points[nearest_index]
         trajectory.append(focused_point)
 
-    return trajectory
+        del residual[timestamps[i]][nearest_index]
+
+    if loop_broken:
+        return [], {}
+    else:
+        return trajectory, residual
 
 
-def assign_initial_labeling(timestamps, time_points_dict):
+def assign_initial_labeling(time_points_dict):
 
+    timestamps = sorted(list(time_points_dict.keys()))
     initial_points = time_points_dict[timestamps[0]]
     trajectories = {}
     for i, point in enumerate(initial_points):
-        trajectories[i] = get_nearest_trajectory(point, timestamps, time_points_dict)
+        trajectories[i], time_points_dict = get_nearest_trajectory(
+            point, timestamps, time_points_dict
+        )
+        if len(time_points_dict) == 0:
+            break
 
     return trajectories
 
 
-def extract_all_leaps(trajectories):
+def extract_leaps(trajectory):
 
     leaps = []
-    for label, trajectory in trajectories.items():
-        for i in range(1, len(trajectory)):
-            distance = np.linalg.norm(trajectory[i] - trajectory[i - 1])
-            leaps.append(distance)
+    for i in range(1, len(trajectory)):
+        distance = np.linalg.norm(trajectory[i] - trajectory[i - 1])
+        leaps.append(distance)
 
     return leaps
 
 
+def extract_all_leaps(trajectories):
+
+    all_leaps = []
+    for label, trajectory in trajectories.items():
+        leaps = extract_leaps(trajectory)
+        all_leaps += leaps
+
+    return all_leaps
+
+
 def check_point_identity(point1, point2):
     return np.allclose(point1, point2)
+
+
+def calc_leap_threshold(leaps):
+    # Detect outliers in leaps
+    leaps_array = np.array(leaps)
+    mean = np.mean(leaps_array)
+    std_dev = np.std(leaps_array)
+    threshold = 3  # Z-score threshold for outlier detection
+
+    outliers = []
+    for leap in leaps:
+        z_score = (leap - mean) / std_dev
+        if np.abs(z_score) > threshold:
+            outliers.append(leap)
+
+    threshold = np.min(outliers)
+    print("Detected outlier threshold in leaps:", threshold)
+
+    return threshold
+
+
+def extract_not_labelled_points(points_pool):
+
+    timestamps = sorted(list(points_pool.keys()))
+
+    not_labelled_points = points_pool[timestamps[0]]
+    del points_pool[timestamps[0]]
+
+    return not_labelled_points, timestamps[0], points_pool
+
+
+def extract_consistent_trajectories(time_points_dict, leap_threshold):
+
+    points_pool = time_points_dict.copy()
+
+    consistent_trajectories = {}
+    label = 0
+    while len(points_pool) > 0:
+        not_labelled_points, timestamp, points_pool = extract_not_labelled_points(
+            points_pool
+        )
+        timestamps = sorted(list(points_pool.keys()))
+        for point in not_labelled_points:
+            focused_point = point
+            trajectory = [{"time": timestamp, "point": focused_point}]
+            for timestamp in timestamps:
+                next_points = points_pool[timestamp]
+                if len(next_points) == 0:
+                    break
+
+                dists = np.array(
+                    [
+                        np.linalg.norm(next_point - focused_point)
+                        for next_point in next_points
+                    ]
+                )
+                if np.min(dists) >= leap_threshold:
+                    break
+
+                focused_point = next_points[np.argmin(dists)]
+                trajectory.append({"time": timestamp, "point": focused_point})
+                points_pool[timestamp] = np.delete(
+                    points_pool[timestamp], np.argmin(dists), axis=0
+                )
+            if len(trajectory) > 1:
+                consistent_trajectories[label] = trajectory
+                label += 1
+
+    return consistent_trajectories
 
 
 def extract_available_regions(point_nums, available_threshold):

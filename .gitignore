@@ -1,3 +1,4 @@
 walk_dataset/
 *.pickle
 *.csv
+*.png
