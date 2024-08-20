@@ -16,24 +16,23 @@ def main(file_name):
     ax = fig.add_subplot(111, projection="3d")
     ax.set_box_aspect([1, 1, 1])
     for timestamp in timestamps:
-        if len(time_points_dict[timestamp]) > 17:
 
-            for point in time_points_dict[timestamp]:
-                ax.text(
-                    point["point"][0],
-                    point["point"][1],
-                    point["point"][2],
-                    str(point["label"]),
-                    color="black",
-                )
-                ax.scatter(
-                    point["point"][0],
-                    point["point"][1],
-                    point["point"][2],
-                    color="blue",
-                )
-            plt.show()
-            break
+        for point in time_points_dict[timestamp]:
+            ax.text(
+                point["point"][0],
+                point["point"][1],
+                point["point"][2],
+                str(point["label"]),
+                color="black",
+            )
+            ax.scatter(
+                point["point"][0],
+                point["point"][1],
+                point["point"][2],
+                color="blue",
+            )
+        plt.show()
+        break
 
 
 if __name__ == "__main__":
