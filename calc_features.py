@@ -154,45 +154,42 @@ def main(file_names):
         pca = PCA(n_components=2)
         state_vector_pca = pca.fit_transform(state_vectors)
 
-        """
         plt.scatter(state_vector_pca[:, 0], state_vector_pca[:, 1])
         plt.xlabel("Principal Component 1")
         plt.ylabel("Principal Component 2")
         plt.title(f"PCA of state vectors for {file_name}")
-        plt.show()
-        """
+        outfile = file_name.replace(".pickle", "_pca_plot.png")
+        plt.savefig(outfile)
 
+        skip_length = 10
         state_vector_2d = state_vector_pca[:, :2]
-        diff_state_vector_2d = np.diff(state_vector_2d, axis=0)
+        diff_state_vector_2d = np.array(
+            [
+                state_vector_2d[i + skip_length] - state_vector_2d[i]
+                for i in range(len(state_vector_2d) - skip_length)
+            ]
+        )
+        norms = np.array([np.linalg.norm(vec) for vec in diff_state_vector_2d])
         state_thetas = np.array(
             [
-                diff_state_vector_2d[i, 0]
-                / (np.linalg.norm(diff_state_vector_2d[i, :]))
+                diff_state_vector_2d[i, 0] / norms[i]
                 for i in range(len(diff_state_vector_2d))
             ]
         )
-        # plt.plot(state_thetas)
-        # plt.show()
 
-        bottom_positions = [i for i in range(len(state_thetas)) if state_thetas[i] < -0.99]
-        top_positions = [i for i in range(len(state_thetas)) if state_thetas[i] > 0.9]
-        positions = sorted(bottom_positions + top_positions)
-
-        # pdb.set_trace()
         ticks = []
-        prepared = True
-        for i in range(len(positions)):
-            if prepared and state_thetas[positions[i]] < -0.99:
-                prepared = False
+        threshold = 0.0
+        for i in range(len(state_thetas) - 1):
+            if state_thetas[i] < threshold and state_thetas[i + 1] > threshold:
                 ticks.append(i)
-            elif not prepared and state_thetas[positions[i]] > 0.99:
-                prepared = True
-
-        # for i in range(len(state_thetas) - 1):
-        #     if state_thetas[i] < 0 and state_thetas[i + 1] > 0:
-        #         ticks.append(i)
-        
         ticks_dict[file_name] = ticks
+
+        if file_name != "calib_180_pre.pickle":
+            plt.plot(state_thetas)
+            plt.plot([threshold] * len(state_thetas))
+            outfile = file_name.replace(".pickle", f"_thetas.png")
+            plt.savefig(outfile)
+            plt.close()
 
     # Plot the angle between body-axis and z-axis among whole walking-phase.
     for file_name in file_names:
@@ -205,14 +202,17 @@ def main(file_names):
 
     # Plot the angle between body-axis and z-axis for each walking-phase
     for file_name in file_names:
-        ticks = ticks_dict[file_name]
-        for i in range(len(ticks) - 1):
-            plt.plot(body_axis_angles_dict[file_name][ticks[i] : ticks[i + 1]], label=i)
-        plt.title(f"Body Axis Angle of the Case {file_name}")
-        plt.legend()
-        outfile = file_name.replace(".pickle", f"_baa_phase.png")
-        plt.savefig(outfile)
-        plt.close()
+        if file_name != "calib_180_pre.pickle":
+            ticks = ticks_dict[file_name]
+            for i in range(len(ticks) - 1):
+                plt.plot(
+                    body_axis_angles_dict[file_name][ticks[i] : ticks[i + 1]], label=i
+                )
+            plt.title(f"Body Axis Angle of the Case {file_name}")
+            plt.legend()
+            outfile = file_name.replace(".pickle", f"_baa_phase.png")
+            plt.savefig(outfile)
+            plt.close()
 
     # Plot the shoulder center positions in whole walking-phase
     for file_name in file_names:
@@ -230,64 +230,101 @@ def main(file_names):
     plt.title(f"Scatter plot of shoulder centers for {file_name}")
     plt.savefig("shoulder_center_whole.png")
 
-
-    # Plot the shoulder center positions for each walking-phase
+    # Plot the shoulder center positions for each walking-phase in a png file.
     for file_name in file_names:
-        shoulder_centers = shoulder_centers_dict[file_name]
-        shoulder_centers = np.array(shoulder_centers)
-        ticks = ticks_dict[file_name]
-        min_max_x = []
-        min_max_z = []
-        for i in range(len(ticks) - 1):
-            plt.scatter(
-                shoulder_centers[ticks[i] : ticks[i + 1], 0]
-                - np.mean(shoulder_centers[ticks[i] : ticks[i + 1], 0]),
-                shoulder_centers[ticks[i] : ticks[i + 1], 2]
-                - np.mean(shoulder_centers[ticks[i] : ticks[i + 1], 2]),
-                c=range(ticks[i + 1] - ticks[i]),
-                cmap="viridis",
-                s=2,
+        if file_name != "calib_180_pre.pickle":
+            shoulder_centers = shoulder_centers_dict[file_name]
+            shoulder_centers = np.array(shoulder_centers)
+            ticks = ticks_dict[file_name]
+            range_x = []
+            range_z = []
+            areas = []
+            for i in range(len(ticks) - 1):
+                plt.scatter(
+                    shoulder_centers[ticks[i] : ticks[i + 1], 0]
+                    - np.mean(shoulder_centers[ticks[i] : ticks[i + 1], 0]),
+                    shoulder_centers[ticks[i] : ticks[i + 1], 2]
+                    - np.mean(shoulder_centers[ticks[i] : ticks[i + 1], 2]),
+                    c=range(ticks[i + 1] - ticks[i]),
+                    cmap="viridis",
+                    s=2,
+                )
+                plt.xlabel("X")
+                plt.ylabel("Z")
+                plt.title(f"Scatter plot of shoulder centers for {file_name}")
+
+                centered_x = shoulder_centers[ticks[i] : ticks[i + 1], 0] - np.mean(
+                    shoulder_centers[ticks[i] : ticks[i + 1], 0]
+                )
+                centered_z = shoulder_centers[ticks[i] : ticks[i + 1], 2] - np.mean(
+                    shoulder_centers[ticks[i] : ticks[i + 1], 2]
+                )
+                range_x.append(np.max(centered_x) - np.min(centered_x))
+                range_z.append(np.max(centered_z) - np.min(centered_z))
+                areas.append(range_x[-1] * range_z[-1] * 100 * 100)
+
+            print(f"({file_name}) areas: {areas}")
+
+            outfile = file_name.replace(".pickle", f"_sc_phase.png")
+            plt.savefig(outfile)
+            plt.close()
+
+    # Plot the shoulder center positions for each walking-phase in each file.
+    for file_name in file_names:
+        if file_name != "calib_180_pre.pickle":
+            shoulder_centers = shoulder_centers_dict[file_name]
+            shoulder_centers = np.array(shoulder_centers)
+            ticks = ticks_dict[file_name]
+            ticks_centers = []
+            for i in range(len(ticks) - 1):
+                plt.scatter(
+                    shoulder_centers[ticks[i] : ticks[i + 1], 0]
+                    - np.mean(shoulder_centers[ticks[i] : ticks[i + 1], 0]),
+                    shoulder_centers[ticks[i] : ticks[i + 1], 2]
+                    - np.mean(shoulder_centers[ticks[i] : ticks[i + 1], 2]),
+                    c=range(ticks[i + 1] - ticks[i]),
+                    cmap="viridis",
+                    s=2,
+                )
+                plt.xlabel("X")
+                plt.ylabel("Z")
+                plt.title(f"Scatter plot of shoulder centers for {file_name}")
+
+                outfile = file_name.replace(".pickle", f"_sc_phase_{i}.png")
+                plt.savefig(outfile)
+                plt.close()
+
+                ticks_centers.append(
+                    (
+                        np.mean(shoulder_centers[ticks[i] : ticks[i + 1], 0]),
+                        np.mean(shoulder_centers[ticks[i] : ticks[i + 1], 2]),
+                    )
+                )
+            ticks_centers = np.array(ticks_centers)
+            print(
+                f"({file_name}) phase_center_x_range: {np.max(ticks_centers[:, 0]) - np.min(ticks_centers[:, 0])}"
             )
-            plt.xlabel("X")
-            plt.ylabel("Z")
-            plt.title(f"Scatter plot of shoulder centers for {file_name}")
-            
-            centered_x = shoulder_centers[ticks[i]:ticks[i + 1], 0] - np.mean(shoulder_centers[ticks[i]:ticks[i + 1], 0])
-            centered_z = shoulder_centers[ticks[i]:ticks[i + 1], 2] - np.mean(shoulder_centers[ticks[i]:ticks[i + 1], 2])
-            min_max_x.append((np.min(centered_x), np.max(centered_x)))
-            min_max_z.append((np.min(centered_z), np.max(centered_z)))
-        
-        median_range_x = np.median([min_max_x[i][1] - min_max_x[i][0] for i in range(len(min_max_x))])
-        median_range_z = np.median([min_max_z[i][1] - min_max_z[i][0] for i in range(len(min_max_z))])
-        print(f'({file_name}) median_area: {median_range_x*median_range_z*(100**2)}')
-        # print(f'({file_name}) median_range_x: {np.median([min_max_x[i][1] - min_max_x[i][0] for i in range(len(min_max_x))])}')
-        # print(f'({file_name}) median_range_z: {np.median([min_max_z[i][1] - min_max_z[i][0] for i in range(len(min_max_z))])}')
-
-        outfile = file_name.replace(".pickle", f"_sc_phase.png")
-        plt.savefig(outfile)
-        plt.close()
-
     # Plot joint angles among whole walking-phase
     for file_name in file_names:
         label = file_name.replace(".pickle", "")
         plt.plot(joint_angles_dict[file_name], label=label)
     plt.title("Joint Angles among Whole Cases")
     plt.legend()
-    outfile = 'joint_angles_whole.png'
+    outfile = "joint_angles_whole.png"
     plt.savefig(outfile)
     plt.close()
 
     # Plot joint angles for each walking-phase
     for file_name in file_names:
-        ticks = ticks_dict[file_name]
-        for i in range(len(ticks) - 1):
-            plt.plot(joint_angles_dict[file_name][ticks[i] : ticks[i + 1]], label=i)
-        plt.title(f"Body Axis Angle of the Case {file_name}")
-        plt.legend()
-        outfile = file_name.replace(".pickle", f"_joint_phase.png")
-        plt.savefig(outfile)
-        plt.close()
-
+        if file_name != "calib_180_pre.pickle":
+            ticks = ticks_dict[file_name]
+            for i in range(len(ticks) - 1):
+                plt.plot(joint_angles_dict[file_name][ticks[i] : ticks[i + 1]], label=i)
+            plt.title(f"Joint Angles of the Case {file_name}")
+            plt.legend()
+            outfile = file_name.replace(".pickle", f"_joint_phase.png")
+            plt.savefig(outfile)
+            plt.close()
 
     """
     for file_name in file_names:
