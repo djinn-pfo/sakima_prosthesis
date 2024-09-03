@@ -338,12 +338,20 @@ def main(file_names):
 
     # Plot joint angles for each walking-phase
     for file_name in file_names:
+        min_joint_angles = []
+        max_joint_angles = []
         if file_name != "calib_180_pre.pickle":
             label = label_dict[file_name]
             ticks = ticks_dict[file_name]
             for i in range(len(ticks) - 1):
                 plt.plot(joint_angles_dict[file_name][ticks[i] : ticks[i + 1]], label=i)
-            plt.title(f"ケース{file_name}の伸展位からの膝関節角度")
+                min_joint_angles.append(
+                    np.min(joint_angles_dict[file_name][ticks[i] : ticks[i + 1]])
+                )
+                max_joint_angles.append(
+                    np.max(joint_angles_dict[file_name][ticks[i] : ticks[i + 1]])
+                )
+            plt.title(f"ケース{label}の伸展位からの膝関節角度")
             plt.legend()
             outfile = file_name.replace(".pickle", f"_joint_phase.png")
             plt.savefig(outfile)
