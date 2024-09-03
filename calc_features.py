@@ -25,6 +25,14 @@ def main(file_names):
     }
     """
 
+    label_dict = {
+        "calib_180_pre.pickle": "最大伸展位置確認",
+        "none_2_20240604.pickle": "装具なし",
+        "tanka_20240604.pickle": "AFO",
+        "cb_tanka_20240604.pickle": "CB + AFO, 1",
+        "cb_tanka_2_20240604.pickle": "CB + AFO, 2",
+    }
+
     body_axis_angles_dict = {}
     shoulder_centers_dict = {}
     waist_centers_dict = {}
@@ -98,18 +106,20 @@ def main(file_names):
 
             # upper_to_waist = left_waist - upper_center
             # upper_to_uncle = uncle_center - upper_center
+
             upper_to_waist = left_waist - upper
+            neg_upper_to_waist = -1 * upper_to_waist
             upper_to_uncle = uncle - upper
 
-            upper_to_waist_projected = upper_to_waist.copy()
+            neg_upper_to_waist_projected = neg_upper_to_waist.copy()
             upper_to_uncle_projected = upper_to_uncle.copy()
-            upper_to_waist_projected[0] = 0
+            neg_upper_to_waist_projected[0] = 0
             upper_to_uncle_projected[0] = 0
 
             joint_angles.append(
                 np.rad2deg(
                     np.arccos(
-                        np.dot(upper_to_waist, upper_to_uncle)
+                        np.dot(neg_upper_to_waist, upper_to_uncle)
                         / (
                             np.linalg.norm(upper_to_waist)
                             * np.linalg.norm(upper_to_uncle)
@@ -121,9 +131,9 @@ def main(file_names):
             joint_angles_projected.append(
                 np.rad2deg(
                     np.arccos(
-                        np.dot(upper_to_waist_projected, upper_to_uncle_projected)
+                        np.dot(neg_upper_to_waist_projected, upper_to_uncle_projected)
                         / (
-                            np.linalg.norm(upper_to_waist_projected)
+                            np.linalg.norm(neg_upper_to_waist_projected)
                             * np.linalg.norm(upper_to_uncle_projected)
                         )
                     )
@@ -191,24 +201,28 @@ def main(file_names):
             plt.savefig(outfile)
             plt.close()
 
+    plt.rcParams["font.family"] = "Noto Sans CJK JP"
+
     # Plot the angle between body-axis and z-axis among whole walking-phase.
     for file_name in file_names:
-        label = file_name.replace(".pickle", "")
+        # label = file_name.replace(".pickle", "")
+        label = label_dict[file_name]
         plt.plot(body_axis_angles_dict[file_name], label=label)
     plt.legend()
-    plt.title("Body Axis Angles among Whole Cases")
+    plt.title("全ケースにおける垂直軸に対する体幹軸角度")
     plt.savefig("body_axis_angles_whole.png")
     plt.close()
 
     # Plot the angle between body-axis and z-axis for each walking-phase
     for file_name in file_names:
         if file_name != "calib_180_pre.pickle":
+            label = label_dict[file_name]
             ticks = ticks_dict[file_name]
             for i in range(len(ticks) - 1):
                 plt.plot(
                     body_axis_angles_dict[file_name][ticks[i] : ticks[i + 1]], label=i
                 )
-            plt.title(f"Body Axis Angle of the Case {file_name}")
+            plt.title(f"ケース{label}における垂直軸に対する体幹軸角度")
             plt.legend()
             outfile = file_name.replace(".pickle", f"_baa_phase.png")
             plt.savefig(outfile)
@@ -227,12 +241,13 @@ def main(file_names):
         )
     plt.xlabel("X")
     plt.ylabel("Z")
-    plt.title(f"Scatter plot of shoulder centers for {file_name}")
+    plt.title(f"全ケースにおける全額面内両肩中心位置")
     plt.savefig("shoulder_center_whole.png")
 
     # Plot the shoulder center positions for each walking-phase in a png file.
     for file_name in file_names:
         if file_name != "calib_180_pre.pickle":
+            label = label_dict[file_name]
             shoulder_centers = shoulder_centers_dict[file_name]
             shoulder_centers = np.array(shoulder_centers)
             ticks = ticks_dict[file_name]
@@ -251,7 +266,7 @@ def main(file_names):
                 )
                 plt.xlabel("X")
                 plt.ylabel("Z")
-                plt.title(f"Scatter plot of shoulder centers for {file_name}")
+                plt.title(f"ケース{label}における全額面内両肩中心位置")
 
                 centered_x = shoulder_centers[ticks[i] : ticks[i + 1], 0] - np.mean(
                     shoulder_centers[ticks[i] : ticks[i + 1], 0]
@@ -272,6 +287,7 @@ def main(file_names):
     # Plot the shoulder center positions for each walking-phase in each file.
     for file_name in file_names:
         if file_name != "calib_180_pre.pickle":
+            label = label_dict[file_name]
             shoulder_centers = shoulder_centers_dict[file_name]
             shoulder_centers = np.array(shoulder_centers)
             ticks = ticks_dict[file_name]
@@ -288,7 +304,7 @@ def main(file_names):
                 )
                 plt.xlabel("X")
                 plt.ylabel("Z")
-                plt.title(f"Scatter plot of shoulder centers for {file_name}")
+                plt.title(f"ケース{label}における全額面内両肩中心位置")
 
                 outfile = file_name.replace(".pickle", f"_sc_phase_{i}.png")
                 plt.savefig(outfile)
@@ -304,11 +320,17 @@ def main(file_names):
             print(
                 f"({file_name}) phase_center_x_range: {np.max(ticks_centers[:, 0]) - np.min(ticks_centers[:, 0])}"
             )
+
     # Plot joint angles among whole walking-phase
     for file_name in file_names:
-        label = file_name.replace(".pickle", "")
-        plt.plot(joint_angles_dict[file_name], label=label)
-    plt.title("Joint Angles among Whole Cases")
+        # label = file_name.replace(".pickle", "")
+        label = label_dict[file_name]
+        if file_name == "calib_180_pre.pickle":
+            zero_level = np.mean(joint_angles_dict[file_name])
+            plt.plot([0] * len(joint_angles_dict[file_name]), label=label)
+        else:
+            plt.plot(joint_angles_dict[file_name] - zero_level, label=label)
+    plt.title("全ケースにおける伸展位からの膝関節角度")
     plt.legend()
     outfile = "joint_angles_whole.png"
     plt.savefig(outfile)
@@ -317,22 +339,30 @@ def main(file_names):
     # Plot joint angles for each walking-phase
     for file_name in file_names:
         if file_name != "calib_180_pre.pickle":
+            label = label_dict[file_name]
             ticks = ticks_dict[file_name]
             for i in range(len(ticks) - 1):
                 plt.plot(joint_angles_dict[file_name][ticks[i] : ticks[i + 1]], label=i)
-            plt.title(f"Joint Angles of the Case {file_name}")
+            plt.title(f"ケース{file_name}の伸展位からの膝関節角度")
             plt.legend()
             outfile = file_name.replace(".pickle", f"_joint_phase.png")
             plt.savefig(outfile)
             plt.close()
 
-    """
+    # Plot joint angles among whole walking-phase in YZ plane
     for file_name in file_names:
-        label = file_name.replace(".pickle", "")
-        plt.plot(joint_angles_projected_dict[file_name])
+        # label = file_name.replace(".pickle", "")
+        label = label_dict[file_name]
+        if file_name == "calib_180_pre.pickle":
+            zero_level = np.mean(joint_angles_dict[file_name])
+            plt.plot([0] * len(joint_angles_projected_dict[file_name]), label=label)
+        else:
+            plt.plot(joint_angles_projected_dict[file_name] - zero_level, label=label)
+    plt.title("全ケースにおける矢状面内膝関節角度")
     plt.legend()
-    plt.show()
-    """
+    outfile = "joint_angles_whole_projected.png"
+    plt.savefig(outfile)
+    plt.close()
 
 
 if __name__ == "__main__":
