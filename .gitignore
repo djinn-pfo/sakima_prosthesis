@@ -2,5 +2,4 @@ walk_dataset/
 *.pickle
 *.csv
 *.png
-movies/
-
+movies
