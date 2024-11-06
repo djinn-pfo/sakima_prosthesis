@@ -7,7 +7,8 @@ mp_drawing = mp.solutions.drawing_utils
 pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
 # Initialize webcam
-cap = cv2.VideoCapture('C:\\Users\\hitos\\Research\\sakima_prosthesis\\analysis_mocap_data\\movies\\media05.mp4')
+# cap = cv2.VideoCapture('C:\\Users\\hitos\\Research\\sakima_prosthesis\\analysis_mocap_data\\movies\\media05.mp4')
+cap = cv2.VideoCapture(0)
 
 while cap.isOpened():
     ret, frame = cap.read()
